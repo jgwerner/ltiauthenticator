@@ -1,4 +1,5 @@
 import time
+import re
 
 from traitlets import Dict
 from tornado import gen, web
@@ -10,7 +11,7 @@ from jupyterhub.utils import url_path_join
 from oauthlib.oauth1.rfc5849 import signature
 from collections import OrderedDict
 
-__version__ = '0.4.1.dev'
+__version__ = '0.4.0'
 
 class LTILaunchValidator:
     # Record time when process starts, so we can reject requests made
@@ -123,6 +124,25 @@ class LTIAuthenticator(Authenticator):
             ('/lti/launch', LTIAuthenticateHandler)
         ]
 
+    def email_to_username(email: str) -> str:
+        if not email:
+            raise ValueError("Email is empty")
+        # get local part of the email
+        username = email.split('@')[0]
+        # get username without +tag
+        username = username.split('+')[0]
+        # remove comments from email
+        username = re.sub(r'\([^)]*\)', '', username)
+        # remove special characters
+        username = re.sub(r'[^\w-]+', '', username)
+        # convert to lower case
+        username = username.lower()
+        
+        if username is not None:
+            ints_in_username = [int(s) for s in re.findall(r'\d+', user.username)]
+            last = ints_in_username[-1] + 1 if ints_in_username else 1
+            username = f'{username}{last}'
+        return username
 
     @gen.coroutine
     def authenticate(self, handler, data=None):
@@ -156,18 +176,33 @@ class LTIAuthenticator(Authenticator):
             # If this is the case we want to use the canvas ID to allow grade returns through the Canvas API
             # If Canvas is running in anonymous mode, we'll still want the 'user_id' (which is the `lti_user_id``)
 
-            canvas_id = handler.get_body_argument('custom_canvas_user_id', default=None)
+            if handler.get_body_argument('custom_canvas_user_id', default=None) is not None:
+                self.log.debug('Canvas custom user id is: ' + handler.get_body_argument('custom_canvas_user_id'))
+            if handler.get_body_argument('lis_person_contact_email_primary', default=None) is not None:
+                self.log.debug('Canvas user email is: ' + handler.get_body_argument('lis_person_contact_email_primary'))
+            if handler.get_body_argument('user_id', default=None) is not None:
+                self.log.debug('Standard user id is: ' + handler.get_body_argument('user_id'))
+            if handler.get_body_argument('lis_person_name_given', default=None) is not None:
+                self.log.debug('Canvas given name is: ' + handler.get_body_argument('lis_person_name_given'))
+            if handler.get_body_argument('lis_person_name_family', default=None) is not None:
+                self.log.debug('Canvas family name is: ' + handler.get_body_argument('lis_person_name_family'))
+            if handler.get_body_argument('roles', default=None) is not None:
+                self.log.debug('Canvas user role is: ' + handler.get_body_argument('roles'))
+            if handler.get_body_argument('context_label', default=None) is not None:
+                self.log.debug('Canvas context label is: ' + handler.get_body_argument('context_label'))
+            # https://www.imsglobal.org/specs/ltiv1p1p1/implementation-guide#toc-9
 
-            if canvas_id is not None:
+            user_id = handler.get_body_argument('lis_person_name_given')
+
+            # value of `user_id` to something else, such as `lis_person_name_given`. This name 
+            if user_id is None:
                 user_id = handler.get_body_argument('custom_canvas_user_id')
-            else:
-                user_id = handler.get_body_argument('user_id')
+            self.log.debug('Assigned user_id is: ' + user_id)
 
             return {
                 'name': user_id,
                 'auth_state': {k: v for k, v in args.items() if not k.startswith('oauth_')}
             }
-
 
     def login_url(self, base_url):
         return url_path_join(base_url, '/lti/launch')
