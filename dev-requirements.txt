@@ -1,3 +1,10 @@
+black
 bump2version
+flake8
 pytest
+pytest-asyncio
+pytest-cov
 pytest-flakes
+pytest-html
+pytest-metadata
+pytest-mock

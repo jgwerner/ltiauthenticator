@@ -4,6 +4,7 @@ from tornado import web
 from ltiauthenticator import LTILaunchValidator
 from oauthlib.oauth1.rfc5849 import signature
 
+
 def make_args(
         consumer_key, consumer_secret,
         launch_url, oauth_timestamp, oauth_nonce, extra_args
@@ -28,6 +29,7 @@ def make_args(
 
     return args
 
+
 def test_launch():
     consumer_key = 'key1'
     consumer_secret = 'secret1'
@@ -47,6 +49,7 @@ def test_launch():
     validator = LTILaunchValidator({consumer_key: consumer_secret})
 
     assert validator.validate_launch_request(launch_url, headers, args)
+
 
 def test_wrong_key():
     consumer_key = 'key1'
@@ -69,6 +72,7 @@ def test_wrong_key():
     with pytest.raises(web.HTTPError):
         assert validator.validate_launch_request(launch_url, headers, args)
 
+
 def test_wrong_secret():
     consumer_key = 'key1'
     consumer_secret = 'secret1'
@@ -89,6 +93,7 @@ def test_wrong_secret():
 
     with pytest.raises(web.HTTPError):
         validator.validate_launch_request(launch_url, headers, args)
+
 
 def test_full_replay():
     consumer_key = 'key1'
@@ -112,6 +117,7 @@ def test_full_replay():
 
     with pytest.raises(web.HTTPError):
         validator.validate_launch_request(launch_url, headers, args)
+
 
 def test_partial_replay_timestamp():
     consumer_key = 'key1'
@@ -137,6 +143,7 @@ def test_partial_replay_timestamp():
     with pytest.raises(web.HTTPError):
         validator.validate_launch_request(launch_url, headers, args)
 
+
 def test_partial_replay_nonce():
     consumer_key = 'key1'
     consumer_secret = 'secret1'
@@ -160,6 +167,7 @@ def test_partial_replay_nonce():
     args['oauth_nonce'] = args['oauth_nonce'] + "1"
     with pytest.raises(web.HTTPError):
         validator.validate_launch_request(launch_url, headers, args)
+
 
 def test_dubious_extra_args():
     consumer_key = 'key1'
